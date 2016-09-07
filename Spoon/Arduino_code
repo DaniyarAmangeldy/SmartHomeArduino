@@ -1,0 +1,150 @@
+#define WIFI_SSID "Nexus 5"
+#define WIFI_PASS "Hotspot123"
+#include <SoftwareSerial.h>
+SoftwareSerial swSerial(2,3);
+long wifiTime = 0;
+long sendDataTime = 0;
+long getDataTime = 0;
+bool wifiConnected = false;
+int LED = 10;
+int Temp = 8;
+int trig = 6;
+int echo = 7;
+int tempValue;
+String tempResult;
+int duration;
+int cm;
+String distance;
+
+void wifiConnect(){
+  swSerial.print("AT+CWJAP=\"");
+  swSerial.print(WIFI_SSID);
+  swSerial.print("\",\"");
+  swSerial.print(WIFI_PASS);
+  swSerial.print("\"\r\n");
+  delay(15000);
+}
+
+void setup() {
+  Serial.begin(9600);
+  swSerial.begin(9600);
+  pinMode(LED, OUTPUT);
+  pinMode(Temp,INPUT);
+  pinMode(trig,OUTPUT);
+  pinMode(echo,INPUT);
+  wifiConnect();
+}
+
+void loop() {
+  
+  if (getDataTime + 1500 < millis()) getData();
+  if (sendDataTime + 1500 < millis()) sendData();
+  if (sendDataTime + 1500 < millis()) sendDistance();
+}
+
+
+void sendData() {
+  temp();
+  sendDataTime = millis();
+  String cmd="GET /spoon/submit.php?";   
+  cmd +="ID=";  cmd +="1";  
+  cmd +="&VALUE=";  cmd +=tempResult;  
+  cmd +="\r\n";
+  swSerial.print("AT+CIPSTART=\"TCP\",\"192.168.43.147\",80\r\n");  delay(600);
+  swSerial.print("AT+CIPSEND=");  swSerial.print(cmd.length());  swSerial.print("\r\n");  delay(600);
+  swSerial.print(cmd);
+  Serial.println("Send data:"+cmd);
+  long time = millis();
+  String response = "";
+  while ( (time + 600) > millis()) {
+    while (swSerial.available()) {
+      char c = swSerial.read();
+      response += c;
+    }
+  }
+ 
+  response = response.substring(response.indexOf('{') + 1, response.indexOf('}'));
+  Serial.println("Responce: "+response);
+  swSerial.print("AT+CIPCLOSE\r\n");  
+        delay(600);
+        }
+void getData() {
+  getDataTime = millis();
+   
+  String cmd="GET /spoon/submit.php?";   
+  cmd +="ID=";  cmd +="0";  
+  cmd +="\r\n";
+  swSerial.print("AT+CIPSTART=\"TCP\",\"192.168.43.147\",80\r\n");  delay(600);
+  swSerial.print("AT+CIPSEND=");  swSerial.print(cmd.length());  swSerial.print("\r\n");  delay(600);
+  swSerial.print(cmd);
+  Serial.println(cmd);
+  long time = millis();
+  String response = "";
+  while ( (time + 600) > millis()) {
+    while (swSerial.available()) {
+      char c = swSerial.read();
+      response += c;
+      
+      
+    }
+  }
+  
+  response = response.substring(response.indexOf('{') + 1, response.indexOf('}'));
+  digitalWrite(LED,response.toInt());
+  swSerial.print("AT+CIPCLOSE\r\n");
+  
+        delay(600);
+}
+
+
+void showSerial() {
+  while (swSerial.available()) {
+    Serial.write(swSerial.read());
+  }
+  Serial.println();
+}
+void sonar(){
+  digitalWrite(trig, LOW); 
+  delayMicroseconds(2); 
+  digitalWrite(trig, HIGH); 
+  delayMicroseconds(10); 
+  digitalWrite(trig, LOW); 
+  duration = pulseIn(echo, HIGH); 
+  cm = duration / 58;
+  distance = String(cm);
+  }
+
+  
+  void temp(){
+    tempValue = analogRead(Temp)/ 9.31;
+    tempResult = String(tempValue);
+  
+  
+
+    } 
+
+void sendDistance() {
+  sonar();
+  sendDataTime = millis();
+  String cmd="GET /spoon/submit.php?";   
+  cmd +="ID=";  cmd +="2";  
+  cmd +="&VALUE=";  cmd +=distance;  
+  cmd +="\r\n";
+  swSerial.print("AT+CIPSTART=\"TCP\",\"192.168.43.147\",80\r\n");  delay(450);
+  swSerial.print("AT+CIPSEND=");  swSerial.print(cmd.length());  swSerial.print("\r\n");  delay(450);
+  swSerial.print(cmd);
+  Serial.println("Send data:"+cmd);
+  long time = millis();
+  String response = "";
+  while ( (time + 450) > millis()) {
+    while (swSerial.available()) {
+      char c = swSerial.read();
+      response += c;
+    }
+  }
+ 
+  response = response.substring(response.indexOf('{') + 1, response.indexOf('}'));
+  Serial.println("Responce: "+response);
+  swSerial.print("AT+CIPCLOSE\r\n");  
+        delay(450);
+        }
